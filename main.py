@@ -7,6 +7,7 @@ from nltk.corpus import stopwords
 import csv
 import random
 import matplotlib.pyplot as plt
+import os
 
 def ReadFile(input_csv_file):
     # Reads input_csv_file and returns four dictionaries tweet_id2text, tweet_id2issue, tweet_id2author_label, tweet_id2label
@@ -38,7 +39,8 @@ def ReadFile(input_csv_file):
 
 
 def SaveFile(tweet_id2text, tweet_id2issue, tweet_id2author_label, tweet_id2label, output_csv_file):
-
+    # Store to Desktop
+    # path = os.path.join(os.environ['USERPROFILE'], 'Desktop', output_csv_file)
     with open(output_csv_file, mode='w', encoding="utf-8") as out_csv:
         writer = csv.writer(out_csv, delimiter=',', quoting=csv.QUOTE_NONE)
         writer.writerow(["tweet_id", "issue", "text", "author", "label"])
@@ -100,12 +102,16 @@ class LogisticRegression(object):
 class Account():
     
     def __init__(self, S):
+        # set id
         self.ID = S["tweet_id"]
+        # set issue feature vector
         self.issue = [1 if ['guns', 'aca', 'lgbt', 'immig', 'isis', 'abort'].index(S["issue"]) == i else 0 for i in range(6)]
+        # set author vector
         if S["author"] == 'democrat':
             self.author = [1]
         else:
             self.author = [0]
+        # clean text 
         text = [re.sub(r'@\w+','',i) for i in S["text"].split()]
         text = [re.sub(r'http.?://[^\s]+[\s]?','',i) for i in text]
         text = [re.sub(r'\W+','',i) for i in text]
@@ -117,16 +123,19 @@ class Account():
         text = [i for i in text if i]
         text = list(dict.fromkeys(text))
         self.text = text
+        # form label
         if S["label"] != 'None':
             self.label = [1 if int(S["label"])-1 == i else 0 for i in range(17)]
         else:
             self.label = None
         
     def getFeatures(self):
+        ''' returns a list of features '''
         assert type(self.text) == list
         return (self.issue + self.author + self.text)
     
     def getLabels(self):
+        ''' returns label '''
         return self.label
     
 class TestCase():
@@ -156,6 +165,7 @@ class TestCase():
     
     
 def buildModel(examples, toPrint = True):
+    ''' builds training model '''
     featureVecs, labels = [], []
     for e in examples:
         featureVecs.append(e.getFeatures())
@@ -172,6 +182,7 @@ def train_classifier(classifier, lr=0.01, ep=500):
     return classifier
 
 def buildExamples(df):
+    ''' create a list of examples , returns examples and a word model'''
     examples = []
     for i in range(len(df)):
         examples.append(Account(df.iloc[i]))
@@ -204,6 +215,7 @@ def error(pred, real):
     return loss
 
 class MyNN:
+    
     def __init__(self, x, y, lr=0.5):
         self.x = x
         neurons = 128
@@ -249,6 +261,7 @@ class MyNN:
         return self.a3.argmax()
 
 def get_acc(x, y, model):
+    # get NN accuracy
     acc = 0
     for xx,yy in zip(x, y):
         s = model.predict(xx)
@@ -259,6 +272,7 @@ def get_acc(x, y, model):
 
 
 def split80_20(examples):
+    ''' splits examples, return training(80%) and testing(20%)'''
     sampleIndices = random.sample(range(len(examples)), len(examples)//5)
     trainingSet, testSet = [], []
     for i in range(len(examples)):
@@ -269,6 +283,7 @@ def split80_20(examples):
     return trainingSet, testSet
 
 def learning_rate_change_LR(examples, _from=0.001, _to=0.05):
+    ''' sees accuracy change over learning rate for LR'''
     trainingSet, testSet = split80_20(examples)
     acc = []
     x_axis = []
@@ -285,7 +300,8 @@ def learning_rate_change_LR(examples, _from=0.001, _to=0.05):
         lr *= 1.3
     return x_axis, acc
     
-def learning_rate_change_NN(X_train, X_test, y_train, y_test, _from=0.01, _to=0.1):
+def learning_rate_change_NN(X_train, X_test, y_train, y_test):
+    ''' sees accuracy change over learning rate for LR'''
     lr = _from 
     acc = []
     x_axis = []
@@ -324,6 +340,7 @@ def LR():
     
     
     x, y = learning_rate_change_LR(examples, _from=0.001, _to=0.005)
+    # plot figure for LR
     fig = plt.figure()
     ax = fig.add_axes([0.1,0.1,1,1])
     ax.set_xlabel('Learning rate')
@@ -504,8 +521,8 @@ def NN():
 
     print("NN Training accuracy: ", get_acc(np.array(y_train), np.array(y_test), model)*0.01)
     
-    x, y = learning_rate_change_NN(X_train, X_test, y_train, y_test, _from=0.01, _to=0.05)
-    
+    x, y = learning_rate_change_NN(X_train, X_test, y_train, y_test)
+    # plot figure for LR
     fig = plt.figure()
     ax = fig.add_axes([0.1,0.1,1,1])
     ax.set_xlabel('Learning rate')
